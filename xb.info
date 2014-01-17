@@ -1,0 +1,7 @@
+name = Exceptional Behaviors
+description = Provides a mechanism of registering small one-off behaviors and attaching them to arbitrary pages. Only use this tool when there is no other logical way of attaching behaviors to elements of a page.
+core = 7.x
+package = 'ActiveLAMP Tools'
+
+dependencies[] = contextual
+dependencies[] = hub

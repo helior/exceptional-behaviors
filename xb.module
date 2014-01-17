@@ -1,0 +1,107 @@
+<?php
+
+/**
+ * @file
+ *  Creates a sub-system of registering behaviors and attaching them to
+ *  arbitrary page elements via contextual link configurations. This module was
+ *  created specifically for the client that requests absurd functionality and
+ *  would really just like to do it themselves whenever/wherever they please.
+ */
+
+
+/******************************************************************************
+ * API Functions
+ *****************************************************************************/
+
+/**
+ * Retrieve all registered behaviors.
+ * 
+ * Since this tool is not meant to be used very often, we retrieve registered
+ * behaviors per page request as needed, as opposed to caching them in the
+ * database.
+ */
+function xb_get_items() {
+  $items = &drupal_static(__FUNCTION__);
+  if (!isset($items)) {
+    $items = module_invoke_all('xb');
+  }
+  return $items;
+}
+
+
+function xb_attach_behaviors(&$page, $identifier = NULL) {
+  // If name is not provided, use the behaviors that are configured for the
+  // current page.  
+  $identifier = isset($identifier) ? $identifier : (isset($_GET['q']) ? 'xb_assoc_' . $_GET['q'] : NULL);
+
+  if ($identifier) {
+    $hub = hub_load($identifier);
+    if ($hub && is_array($hub)) {
+      foreach ($hub as $item) {
+        drupal_add_js(array(
+          'xb' => array(
+            $item['behavior'] => $item['data'],
+          ),
+        ), 'setting');
+        
+        drupal_process_attached(array('#attached' => $item['attached']));
+      }
+    }
+  }
+}
+/******************************************************************************
+ * Drupal Hooks
+ *****************************************************************************/
+
+/**
+ * Implements hook_menu().
+ */
+function xb_menu() {
+  $items['admin/config/xb'] = array(
+    'title' => 'Exceptional Behavior',
+    'description' => 'Attach registered behaviors to arbitrary page elements.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('xb_assoc'),
+    'access arguments' => array('configure xb'),
+    'file' => 'xb.admin.inc',
+  );
+
+  // Contextual link
+  $items['admin/config/xb/edit'] = array(
+    'title' => 'Edit Exceptional Behaviors',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('xb_assoc'),
+    'access arguments' => array('configure xb'),
+    'file' => 'xb.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
+    );
+    
+  return $items;
+}
+
+
+
+/**
+ * Implements hook_permissions().
+ */
+function xb_permission() {
+  return array(
+    'configure xb' => array(
+      'title' => t('Configure Exceptional Behaviors'),
+      'description' => t('Allow users to attach register behaviors to arbitrary page elements.'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_page_build().
+ */
+function xb_page_build(&$page) {
+  // Add contextual link to the entire page.
+  $page['#contextual_links']['xb'] = array('admin/config', array('xb'));
+  
+  // Attach behaviors to this page if they are configured to be attached in this context.
+  xb_attach_behaviors($page);
+}
